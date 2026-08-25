@@ -1,0 +1,37 @@
+{
+  "name": "to-do-list-app-demo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "mongoose": "^9.9.3",
+    "next": "16.3.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@fortawesome/fontawesome-svg-core": "^7.1.0",
+    "@fortawesome/free-brands-svg-icons": "^7.1.0",
+    "@fortawesome/free-regular-svg-icons": "^7.1.0",
+    "@fortawesome/free-solid-svg-icons": "^7.1.0",
+    "@fortawesome/react-fontawesome": "^3.1.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/mongoose": "^5.11.96",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "axios": "^1.7.9",
+    "bootstrap": "^5.3.8",
+    "chart.js": "^4.5.1",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.2",
+    "react-bootstrap": "^2.10.9",
+    "react-select": "^5.10.1",
+    "typescript": "^5.1.0"
+  }
+}
