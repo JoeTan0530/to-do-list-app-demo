@@ -1,0 +1,33 @@
+/*Ipad Pro view*/
+@media (min-width: 991px) and (max-width: 1199px) {
+
+}
+
+/*Ipad view*/
+@media (min-width: 768px) and (max-width: 990px) {
+	
+}
+
+/*Mobile view*/
+@media (min-width: 320px) and (max-width: 767px) {
+	.page-content-container.login-page-container {
+		padding-top: 2rem;
+	}
+
+	.custom-popup-container.top-right,
+	.custom-popup-container.top-left,
+	.custom-popup-container.bottom-right,
+	.custom-popup-container.bottom-left {
+		top: 3%;
+		right: 5%;
+	}
+
+	.custom-popup-display {
+		min-width: 90vw;
+		max-width: 90vw;
+	}
+
+	.custom-popup-display-text {
+		text-align: center;
+	}
+}

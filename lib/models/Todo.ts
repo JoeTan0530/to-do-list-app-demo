@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { generateReturnObj, verifyIdFormat } from './utilities/general.js';
+import { generateReturnObj, verifyIdFormat } from '../utilities/general.js';
 
 const todoSchema = new mongoose.Schema({
 	task_name: {
@@ -22,7 +22,8 @@ const todoSchema = new mongoose.Schema({
 	},
 	completed_date: {
 		type: Date
-	}
+	},
+	order: { type: Number, default: 0 }
 }, {
 	timestamps: true
 });
@@ -81,8 +82,9 @@ todoSchema.statics.getTaskList = async function(params) {
 				taskID: "$_id",
 				taskName: "$task_name",
 				taskDescription: "$task_description",
-				taskCategory: "$taskCategory",
+				taskCategory: "$task_category",
 				status: 1,
+				order: 1,
 				dueDate: {
 					$dateToString: {
 						format: "%Y-%m-%d",
@@ -131,7 +133,7 @@ todoSchema.statics.getPagination = async function(params) {
 		limit
 	} = params;
 
-	const paginationRes = await this.aggregatte([
+	const paginationRes = await this.aggregate([
 		{
 			$match: listingCondition
 		},
@@ -145,6 +147,14 @@ todoSchema.statics.getPagination = async function(params) {
 			}
 		}
 	]);
+
+	// Default pagination info.
+	let paginationObj = {
+		pageNumber: 1,
+		numRecord: limit,
+		totalRecord: 0,
+		totalPage: 0
+	}
 
 	if (paginationRes && paginationRes[0]['totalRecord'] && paginationRes[0]['totalRecord'].length > 0) {
 		const totalRecordData = paginationRes[0]['totalRecord'][0]['count'];
@@ -187,12 +197,41 @@ todoSchema.statics.addTask = async function(params) {
 			return generateReturnObj("Error", 3, errorField, "Form error");
 		}
 
+		const tasksRes = await this.aggregate([
+			{
+				$match: {
+					status: "incomplete"
+				}
+			},
+			{
+				$project: {
+					order: 1
+				}
+			},
+			{
+				$sort: {
+					order: -1
+				}
+			},
+			{
+				$limit: 1
+			}
+		]);
+
+		let latestTaskOrderNum = 1;
+
+		if (tasksRes && tasksRes.length > 0) {
+			latestTaskOrderNum = Number(tasksRes[0]['order']) + 1;
+		}
+
+
 		const newTask = new this({
 			task_name: paramData['taskName'],
 			task_description: paramData['taskDescription'],
 			task_category: paramData['taskCategory'],
 			status: paramData['status'],
-			due_date: paramData['dueDate']
+			due_date: paramData['dueDate'],
+			order: latestTaskOrderNum
 		});
 
 		await newTask.save();
@@ -246,7 +285,7 @@ todoSchema.statics.editTask = async function(params) {
 			taskItem.due_date = paramData['dueDate'];
 			taskItem.completed_date = paramData['completed_date'];
 
-			await expenseItem.save();
+			await taskItem.save();
 
 			return generateReturnObj("Success", 0, "", "Successfully edited a task.");
 		}
@@ -262,7 +301,7 @@ todoSchema.statics.removeTask = async function(params) {
 
 	const verifiedTaskID = verifyIdFormat(taskID);
 
-	if (!paramData['taskID'] || paramData['taskID'] == "" || (verifiedTaskID['status'] && verifiedTaskID['status'] == "error")) {
+	if (!taskID || taskID == "" || (verifiedTaskID['status'] && verifiedTaskID['status'] == "error")) {
 		return generateReturnObj("Error", 2, "", "Invalid task ID.");
 	}
 
@@ -271,8 +310,55 @@ todoSchema.statics.removeTask = async function(params) {
 	if (deletedItemRes) {
 		return generateReturnObj("Success", 0, "", "Successfully removed task record.");
 	} else {
-		return generateReturnObj("Error", 2, "", "Unable to remove task record, please contact admin");
+		return generateReturnObj("Error", 2, "", "Unable to remove task record, please contact admin.");
 	}
 }
 
-module.exports = mongoose.model('Expenses', expenseSchema);
+todoSchema.statics.updateTaskStatus = async function (params) {
+	const {
+		taskID,
+		status
+	} = params;
+
+	const verifiedTaskID = verifyIdFormat(taskID);
+
+	if (!taskID || taskID == "" || (verifiedTaskID['status'] && verifiedTaskID['status'] == "error")) {
+		return generateReturnObj("Error", 2, "", "Invalid task ID.");
+	}
+
+	if (!status || status != "") {
+		return generateReturnObj("Error", 2, "", "Invalid status.");
+	}
+
+	const taskItem = await this.findById(verifiedTaskID);
+
+	if (taskItem) {
+		taskItem.status = status;
+		taskItem.order = 0;
+
+		await taskItem.save();
+
+		return generateReturnObj("Success", 0, "","Successfully updated task record.");
+	} else {
+		return generateReturnObj("Error", 2, "", "Unable to update task record, please contact admin.");
+	}
+}
+
+todoSchema.statics.reorderingTask = async function (params) {
+	const {
+		reorderedTaskList
+	} = params;
+
+	const operations = reorderedTaskList.map((item) => ({
+		updateOne: {
+			filter: { _id: new mongoose.Types.ObjectId(item.taskID) },
+			update: { $set: { order: item.order } }
+		}
+	}));
+
+	const result = await this.bulkWrite(operations);
+
+	return generateReturnObj("Success", 0, "", "Successfully rearranged task record.");
+}
+
+export const Todo = mongoose.models.Todo || mongoose.model('Todo', todoSchema);

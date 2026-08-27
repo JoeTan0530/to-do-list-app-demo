@@ -4,8 +4,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: "/login",
-        destination: "/web/login"
+        source: "/Form",
+        destination: "/web/form"
       }
     ];
   }

@@ -1,49 +1,56 @@
-const express = require('express');
-const router = express.Router();
-const Expense = require('../models/Expense');
-const User = require('../models/User');
-const { generateReturnObj, decodeToken } = require('../models/utilities/general');
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/mongodb';
+import { connectToDatabase } from '@/lib/mongodb';
+import { Todo } from '@/lib/models/Todo';
 
-router.post('/', async(req, res) => {
+import { generateReturnObj } from '@/lib/utilities/general';
+
+export async function POST(request: Request) {
 	try {
-		let request = req.body;
+		// 1. Parse the request body correctly
+        const body = await request.json();
+        
+        // 2. Extract command and params
+        const { command, params } = body;
+        
+        // 3. Connect to database
+        await connectToDatabase();
 
-		let response = {};
-
-		let command = request.command;
-
-		let params = request.params;
+        // 4. Execute the command
+        let response;
 
 		switch (command) {
-			case "getExpenseItem":
-				response = await Expense.getExpenseItem(params);
+			case "getTaskStatus":
+				response = await Todo.getTaskStatus();
 				break;
-			case "getDateRangeExpense":
-				response = await Expense.getDateRangeExpense(params);
+			case "getTaskCategory":
+				response = await Todo.getTaskCategory();
 				break;
-			case "getExpenseList":
-				response = await Expense.getExpenseList(params);
+			case "getTaskList":
+				response = await Todo.getTaskList(params);
 				break;
-			case "addExpense":
-				response = await Expense.addExpense(params);
+			case "addTask":
+				response = await Todo.addTask(params);
 				break;
-			case "editExpense":
-				response = await Expense.editExpense(params);
+			case "editTask":
+				response = await Todo.editTask(params);
 				break;
-			case "removeExpense":
-				response = await Expense.removeExpense(params);
+			case "removeTask":
+				response = await Todo.removeTask(params);
+				break;
+			case "updateTaskStatus":
+				response = await Todo.updateTaskStatus(params);
+				break;
+			case "reorderingTask":
+				response = await Todo.reorderingTask(params);
 				break;
 			default:
 				response = generateReturnObj("Error", 1, "", "Invalid command.");
 		}
 
-		res.status(200).json(response);
+		// 5. Return response using NextResponse
+        return NextResponse.json(response, { status: 200 });
 	} catch (error) {
 		let errorResponse = generateReturnObj("Error", 2, "", error.message);
-		res.status(400).json(errorResponse);
+        return NextResponse.json(errorResponse, { status: 400 });
 	}
-});
-
-module.exports = router;
+}
