@@ -36,8 +36,6 @@ export const apiCaller = async (method, param, fCallback, setErrMsg, setIsLoadin
 				headers: getAuthHeaders(),
 			});
 
-			clearTimeout(timeoutID);
-
 			callApiSuccess(res, fCallback, setErrMsg, param);
 
 			if(setIsLoading) {

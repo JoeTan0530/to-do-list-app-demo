@@ -34,18 +34,57 @@ export default function HomePage() {
 
   const [searchBarFilterConfig, setSearchBarFilterConfig] = useState([
     {
-      label: "Completed",
-      value: "complete" 
+      title: "Filter By",
+      btnItemArr: [
+        {
+          label: "Completed",
+          value: "complete" 
+        },
+        {
+          label: "Incompleted",
+          value: "incomplete" 
+        }
+      ]
     },
     {
-      label: "Incompleted",
-      value: "incomplete" 
+      title: "Sort By",
+      btnItemArr: [
+        {
+          label: "Created At",
+          value: "created_at",
+        },
+        {
+          label: "Due Date",
+          value: "due_date",
+        },
+        {
+          label: "Custom Order",
+          value: "order",
+        },
+      ]
+    },
+    {
+      title: "Order By",
+      btnItemArr: [
+        {
+          label: "Ascending",
+          value: "ascending"
+        },
+        {
+          label: "Descending",
+          value: "descending"
+        },
+      ]
     }
   ]);
 
+  const redirectToForm = () => {
+    redirect("/Form");
+  }
+
   return (
     <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-5xl flex-col items-center justify-between py-12 px-16 bg-zinc-50 dark:bg-black sm:items-start">
+      <main className="flex flex-1 w-full max-w-5xl flex-col items-center justify-between py-6 md:py-12 px-6 md:px-16 bg-zinc-50 dark:bg-black sm:items-start">
           <div className="flex flex-col items-center w-full gap-6 text-center sm:items-start sm:text-left">
             <div className="w-full mb-5">
               <div className="text-3xl font-bold">
@@ -65,7 +104,8 @@ export default function HomePage() {
               <CustomSearchBar 
                 containerID="customSearch"
                 searchInputID="searchBar"
-                filterStatus={searchBarFilterConfig}
+                redirectBtn={redirectToForm}
+                btnArr={searchBarFilterConfig}
               />
             </div>
           </div>

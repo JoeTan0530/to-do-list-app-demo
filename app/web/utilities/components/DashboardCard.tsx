@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useId } from "react";
 
 interface DashboardCardProps {
 	dashboardID: string,
@@ -11,7 +11,8 @@ const DashboardCard: React.FC<DashboardCardProps> = (props) => {
 		cardConfig
 	} = props;
 
-	const dashboardCardID = dashboardID || `defaultDashboardID${document.getElementsByClassName("dashboard-card-container").length}`
+	const uniqueID = useId();
+	const dashboardCardID = dashboardID || `defaultDashboardID${uniqueID}`
 
 	return (
 		<div key={dashboardCardID} className="dashboard-card-container">
