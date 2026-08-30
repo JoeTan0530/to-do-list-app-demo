@@ -13,7 +13,10 @@
     "mongoose": "^9.9.3",
     "next": "16.3.2",
     "react": "19.2.8",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "19.2.8",
+    "react-hot-toast": "^2.6.0",
     "react-tailwindcss-datepicker": "^2.0.0"
   },
   "devDependencies": {

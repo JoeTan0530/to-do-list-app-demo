@@ -113,7 +113,7 @@ function callApiSuccess(res, fCallback, setErrMsg, param) {
 		result.data.field.forEach((element) => {
 			setErrMsg((prevData) => ({
 				...prevData,
-				[element.id]: element.msg,
+				[element.errorID]: element.errorMsg,
 			}));
 		});
 	} else if (result.status === "error") {
@@ -133,7 +133,6 @@ function errorHandling(code, msg) {
 			break;
 		case 3:
 			console.log(msg, 'error');
-			logoutUser();
 			break;
 		default:
 			console.log('Default Error');

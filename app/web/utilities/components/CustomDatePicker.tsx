@@ -42,7 +42,11 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = (props) => {
     if (value !== undefined && value !== null) {
       if (asSingle) {
         const date = typeof value === 'string' ? new Date(value) : value;
-        setInternalValue(date instanceof Date && !isNaN(date.getTime()) ? date : null);
+        const defaultDate = date instanceof Date && !isNaN(date.getTime()) ? date : null;
+        setInternalValue({
+          startDate: defaultDate,
+          endDate: defaultDate
+        });
       } else {
         const start = value?.startDate ? new Date(value.startDate) : null;
         const end = value?.endDate ? new Date(value.endDate) : null;
@@ -64,16 +68,22 @@ const CustomDatePicker: React.FC<CustomDatePickerProps> = (props) => {
     return `${year}-${month}-${day}`;
   };
 
+  const getUTCDate = (dateObj: Date | null) => {
+      if (!dateObj) return '';
+
+      return dateObj.toISOString();
+  }
+
   const handleValueChange = (newValue: any) => {
     setInternalValue(newValue);
     if (onChange) {
       let formattedValue;
       if (asSingle) {
-        formattedValue = newValue?.startDate ? formatDate(newValue.startDate) : '';
+        formattedValue = newValue?.startDate ? getUTCDate(newValue.startDate) : '';
       } else {
         formattedValue = {
-          startDate: newValue?.startDate ? formatDate(newValue.startDate) : '',
-          endDate: newValue?.endDate ? formatDate(newValue.endDate) : '',
+          startDate: newValue?.startDate ? getUTCDate(newValue.startDate) : '',
+          endDate: newValue?.endDate ? getUTCDate(newValue.endDate) : '',
         };
       }
       onChange({

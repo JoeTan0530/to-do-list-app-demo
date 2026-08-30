@@ -77,7 +77,7 @@ const CustomSelect: React.FC<CustomSelectProps> = (props) => {
 			inputId={displayID}
 			instanceId={displayID}
 			ref={selectRef}
-			className="form-select bg-gray-100 border border-gray-300"
+			className="form-select bg-gray-100 border border-gray-300 rounded-lg"
 			classNamePrefix="form-select"
 			options={optionList}
 			value={displayType}

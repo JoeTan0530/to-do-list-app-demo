@@ -29,3 +29,8 @@ body {
 .datepicker-wrapper .opacity-1 {
   opacity: 1 !important;
 }
+
+.form-select > .form-select__control.css-1rn7yzg-control {
+  background-color: inherit !important; 
+  border-radius: inherit !important;
+}

@@ -1,4 +1,4 @@
-import { useState, useId } from "react";
+import { useEffect, useState, useRef, useId } from "react";
 import { Form, Button } from "react-bootstrap";
 
 // Icon import
@@ -10,6 +10,7 @@ interface CustomSeachBarProps {
 	searchInputID: string,
 	redirectBtn?: Function
 	btnArr: [],
+	formDataState?: Function,
 }
 
 const CustomSearchBar: React.FC<CustomSeachBarProps> = (props) => {
@@ -18,6 +19,7 @@ const CustomSearchBar: React.FC<CustomSeachBarProps> = (props) => {
 		searchInputID,
 		redirectBtn,
 		btnArr = [],
+		formDataState,
 	} = props;
 
 	const uniqueID = useId();
@@ -25,12 +27,35 @@ const CustomSearchBar: React.FC<CustomSeachBarProps> = (props) => {
 
 	const [selectedIndex, setSelectedIndex] = useState({});
 
+	const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+
 	const updateSeletedIndex = (value, key) => {
 		setSelectedIndex((prevData) => ({
 	      ...prevData,
 	      [key]: value,
 	    }));
+
+	    updateToFormState(key, value);
 	}
+
+	const updateFormData = (events) => {
+		const { id, value } = events.target;
+
+		if (debounceTimer.current) {
+	      clearTimeout(debounceTimer.current);
+	    }
+	    debounceTimer.current = setTimeout(() => {
+	      updateToFormState(id, value);
+	    }, 300);
+	}
+
+	const updateToFormState = (id, value) =>  {
+		formDataState((prevData) => ({
+	      ...prevData,
+	      [id]: value
+	    }));
+	}
+
 
 	return (
 		<div key={searchBarContainerID} className="search-bar-container">
@@ -43,7 +68,7 @@ const CustomSearchBar: React.FC<CustomSeachBarProps> = (props) => {
 									<FontAwesomeIcon icon={faMagnifyingGlass} className="text-gray-400" />
 								</div>
 								<div className="w-full">
-									<Form.Control type="type" className="bg-transparent w-full h-4 focus:outline-none" placeholder="Search"/>
+									<Form.Control type="type" className="bg-transparent w-full h-4 focus:outline-none" placeholder="Search" onChange={(event) => updateFormData(event)}/>
 								</div>
 							</Form.Group>
 						</div>
@@ -59,7 +84,7 @@ const CustomSearchBar: React.FC<CustomSeachBarProps> = (props) => {
 							return (
 								<div key={`filter-row-${containerID}-${index}`} className="grid grid-cols-8 gap-4 mb-5 md:mb-3">
 									<div className="col-span-8 md:col-span-1">
-										<div className="text-lg text-gray-400 text-left md:text-center md:me-2">
+										<div className="text-lg text-gray-400 text-left md:me-2">
 											{rowItem['title']}:
 										</div>
 									</div>
@@ -74,12 +99,12 @@ const CustomSearchBar: React.FC<CustomSeachBarProps> = (props) => {
 															className={`
 																w-full rounded-xl border border-solid border-blue text-blue-600 p-2 cursor-pointer 
 																hover:bg-blue-100
-																${(selectedIndex[rowItem['title']] && selectedIndex[rowItem['title']] === btnItem['value'])
+																${(selectedIndex[rowItem['id']] && selectedIndex[rowItem['id']] === btnItem['value'])
 													              ? 'bg-blue-100' 
 													              : 'bg-white'
 													            }
 															`}
-															onClick={() => updateSeletedIndex(btnItem['value'], rowItem['title'])}
+															onClick={() => updateSeletedIndex(btnItem['value'], rowItem['id'])}
 														>
 															{btnItem['label']}
 														</Button>

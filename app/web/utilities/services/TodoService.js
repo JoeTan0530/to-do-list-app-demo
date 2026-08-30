@@ -26,11 +26,24 @@ export const getTaskCategory = (callback) => {
   apiCaller("POST", params, callback);
 };
 
-export const addTask = (payload, callback) => {
+export const addTask = (payload, callback, errorState) => {
   const params = {
     url: getTodoApiUrl(),
     urlParams: {
       command: "addTask",
+      params: payload,
+    },
+  };
+
+  apiCaller("POST", params, callback, errorState);
+};
+
+
+export const getTaskList = (payload, callback) => {
+  const params = {
+    url: getTodoApiUrl(),
+    urlParams: {
+      command: "getTaskList",
       params: payload,
     },
   };

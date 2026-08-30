@@ -1,40 +1,47 @@
 "use client"
 
 import { redirect } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import DashboardCard from "./web/utilities/components/DashboardCard";
 import CustomSearchBar from "./web/utilities/components/CustomSearchBar";
+import CustomDraggableTable from './web/utilities/components/CustomDraggableTable';
 
 // Icon import
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars, faClock, faCircleCheck } from "@fortawesome/free-solid-svg-icons";
 
+import { getTaskList, getTaskStatus, getTaskCategory } from "./web/utilities/services/TodoService"
+
 export default function HomePage() {
   const [dashboardConfig, setDashboardConfig] = useState([
     {
       icon: <FontAwesomeIcon icon={faBars} />,
-      label: "Test",
+      label: "Total Task",
       value: "Hexagone"
     },
     {
       icon: <FontAwesomeIcon icon={faClock} />,
       iconBg: "bg-yellow-200",
       iconColor: "text-yellow-400",
-      label: "Test 2",
+      label: "Incomplete",
       value: "Digimon"
     },
     {
       icon: <FontAwesomeIcon icon={faCircleCheck} />,
       iconBg: "bg-green-200",
       iconColor: "text-green-400",
-      label: "Test 3",
+      label: "Completed",
       value: "Holington"
     },
   ]);
 
+  const [searchBarFilterForm, setSearchBarFilterForm] = useState({});
+  const prevFilterRef = useRef(searchBarFilterForm);
+
   const [searchBarFilterConfig, setSearchBarFilterConfig] = useState([
     {
-      title: "Filter By",
+      id: "status",
+      title: "Status",
       btnItemArr: [
         {
           label: "Completed",
@@ -47,23 +54,39 @@ export default function HomePage() {
       ]
     },
     {
+      id: "task_category",
+      title: "Category",
+      btnItemArr: [
+        {
+          label: "Completed",
+          value: "complete" 
+        },
+        {
+          label: "Incompleted",
+          value: "incomplete" 
+        }
+      ]
+    },
+    {
+      id: "sort",
       title: "Sort By",
       btnItemArr: [
         {
           label: "Created At",
-          value: "created_at",
+          value: "createdAt",
         },
         {
           label: "Due Date",
           value: "due_date",
         },
         {
-          label: "Custom Order",
+          label: "Priority",
           value: "order",
         },
       ]
     },
     {
+      id: "order",
       title: "Order By",
       btnItemArr: [
         {
@@ -75,8 +98,91 @@ export default function HomePage() {
           value: "descending"
         },
       ]
+    },
+    {
+      id: "limit",
+      title: "Task Per Page",
+      btnItemArr: [
+        {
+          label: "5 Tasks",
+          value: 5
+        },
+        {
+          label: "10 Tasks",
+          value: 10
+        },
+        {
+          label: "15 Tasks",
+          value: 15
+        },
+        {
+          label: "20 Tasks",
+          value: 20
+        },
+      ]
     }
   ]);
+
+  const updateFieldOptions = (fieldId: string) => (data: any[], msg: string) => {
+    setSearchBarFilterConfig((prev) =>
+      prev.map((item) =>
+        item.id === fieldId
+          ? { ...item, btnItemArr: data }
+          : item
+      )
+    );
+  };
+
+  const triggerListingAPI = (pageNumber = 1) => {
+    const apiParams = {
+      page: pageNumber,
+      limit: searchBarFilterForm['limit'],
+      filters: searchBarFilterForm
+    }
+
+    // console.log("apiParams: ", apiParams);
+    getTaskList(apiParams, listingCallback);
+  }
+
+  useLayoutEffect(() => {
+    getTaskList({}, listingCallback);
+    getTaskStatus(updateFieldOptions('status'));
+    getTaskCategory(updateFieldOptions('task_category'));
+  },[]);
+
+  useEffect(() => {
+    if (prevFilterRef.current === searchBarFilterForm) {
+      return; // Skip this run
+    }
+    triggerListingAPI();
+  },[searchBarFilterForm]);
+
+  const listingCallback = (data, msg) => {
+    setTasks(data.listing || []);
+  }
+
+  const [tasks, setTasks] = useState([]);
+
+  const columns = [
+    { key: 'taskName', header: 'Task Name' },
+    { key: 'taskDescription', header: 'Task Description'},
+    { key: 'taskCategory', header: 'Task Category' },
+    { key: 'status', header: 'Status' },
+    { key: 'dueDate', header: 'Due Date' },
+    { key: 'order', header: 'Priority' }
+  ];
+
+  const handleEdit = (item: any) => {
+    console.log("Edit", item);
+  };
+
+  const handleView = (item: any) => {
+    console.log('View', item);
+  };
+
+  const handleDelete = (item: any) => {
+    console.log('Delete', item);
+  };
 
   const redirectToForm = () => {
     redirect("/Form");
@@ -100,12 +206,26 @@ export default function HomePage() {
                 cardConfig={dashboardConfig}
               />
             </div>
-            <div className="w-full">
+            <div className="w-full mb-3">
               <CustomSearchBar 
                 containerID="customSearch"
-                searchInputID="searchBar"
+                searchInputID="taskDescription"
                 redirectBtn={redirectToForm}
                 btnArr={searchBarFilterConfig}
+                formDataState={setSearchBarFilterForm}
+              />
+            </div>
+            <div className="w-full">
+              <CustomDraggableTable
+                tableId="tasks-table"
+                columns={columns}
+                data={tasks}
+                rowKey="taskID"
+                // onReorder={handleReorder}
+                onEdit={handleEdit}
+                onView={handleView}
+                onDelete={handleDelete}
+                showActions
               />
             </div>
           </div>

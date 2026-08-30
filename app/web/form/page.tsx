@@ -1,27 +1,33 @@
 "use client"
 import { useEffect, useState } from "react";
+import { useRouter } from 'next/navigation';
 import { Button } from "react-bootstrap";
 
 import CustomFormBuilder from "../utilities/components/CustomFormBuilder";
 import CustomDatePicker from "../utilities/components/CustomDatePicker";
 
 import { addTask, getTaskStatus, getTaskCategory } from "../utilities/services/TodoService"
+import toast from 'react-hot-toast';
 
 export default function Form() {
+  const router = useRouter();
+
   const [formData, setFormData] = useState({
     taskName: "",
     taskCategory: "",
     taskDescription: "",
     status: "",
-    dueDate: "",
+    dueDate: new Date().toISOString(),
   });
+
+  const [errorMsg, setErrorMsg] = useState({});
 
   const [formConfig, setFormConfig] = useState([
     {
       id: "taskName",
       type: "text",
       label: "Task Name",
-      placeholder: "",
+      isRequired: true
     },
     {
       id: "taskCategory",
@@ -29,24 +35,24 @@ export default function Form() {
       label: "Task Category",
       value: formData['taskCategory'],
       options: [],
+      isRequired: true
     },
     {
       id: "taskDescription",
       type: "textarea",
       label: "Task Description",
-      placeholder: "",
     },
     {
       id: "status",
       type: "select",
       label: "Status",
-      options: []
+      options: [],
+      isRequired: true
     },
     {
       id: "dueDate",
       type: "date",
       label: "Due Date",
-      placeholder: "",
     }
   ]);
 
@@ -79,12 +85,15 @@ export default function Form() {
   }
 
   const triggerConfirm = () => {
-    console.log("Form Data: ", formData);
-    // addTask(formData, triggerAPICallback);
+    setErrorMsg({});
+    addTask(formData, triggerAPICallback, setErrorMsg);
   }
 
   const triggerAPICallback = (data, msg) => {
-    console.log("data: ", data);
+    toast.success(msg);
+    setTimeout(() => {
+      router.push('/')
+    }, 3000);
   }
 
   return (
@@ -103,6 +112,7 @@ export default function Form() {
                 formConfig={formConfig}
                 handleFormData={updateFormData}
                 latestFormData={formData}
+                errorState={errorMsg}
               />
             </div>
             <div className="flex flex-row justify-end items-center w-full">
