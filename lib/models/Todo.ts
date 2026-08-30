@@ -28,7 +28,8 @@ const todoSchema = new mongoose.Schema({
 	timestamps: true
 });
 
-todoSchema.statics.getTaskStatus = async function() {
+todoSchema.statics.getTaskStatus = async function(internalUse = false) {
+
 	const statusArr = [
 		{
 			label: "Incomplete",
@@ -40,10 +41,22 @@ todoSchema.statics.getTaskStatus = async function() {
 		}
 	];
 
-	return generateReturnObj("Success", 0, statusArr, "");
+	if (internalUse) {
+		let statusObj = {};
+
+		statusArr.forEach((item, index) => {
+			statusObj[item['value']] = item['label'];
+		});
+
+		return statusObj;
+
+	} else {
+		return generateReturnObj("Success", 0, statusArr, "");
+	}
 }
 
-todoSchema.statics.getTaskCategory = async function() {
+todoSchema.statics.getTaskCategory = async function(internalUse = false) {
+
 	const categoryArr = [
 		{
 			label: "Work",
@@ -59,18 +72,112 @@ todoSchema.statics.getTaskCategory = async function() {
 		}
 	];
 
-	return generateReturnObj("Success", 0, categoryArr, "");
+	if (internalUse) {
+		let categoryObj = {};
+
+		categoryArr.forEach((item, index) => {
+			categoryObj[item['value']] = item['label'];
+		});
+
+		return categoryObj;
+	} else {
+		return generateReturnObj("Success", 0, categoryArr, "");
+	}
+}
+
+todoSchema.statics.getTaskItem = async function (params) {
+	const {
+		taskID,
+		editUse = false
+	} = props;
+
+	const verifiedTaskID = verifyIdFormat(taskID);
+
+	if (verifiedTaskID['status'] && verifiedTaskID['status'] == "error") {
+		return verifiedTaskID;
+	}
+
+	const taskItemRes = await this.aggregate([
+		{
+			$match: {
+				_id: new mongoose.Types.ObjectId(verifiedTaskID),
+			}
+		},
+		{
+			$project: {
+				_id: 0,
+				taskName: "$task_name",
+				taskDescription: "$task_description",
+				taskCategory: "$task_category",
+				status: "$status",
+				dueDate: "$due_date",
+			}
+		}
+	]);
+
+	if (taskItemRes && taskItemRes.length > 0) {
+		let tempItemRes = taskItemRes[0];
+
+		if (editUse) {
+			const statusObj = await this.getTaskStatus(true);
+			const categoryObj = await this.getTaskCategory(true);
+
+			tempItemRes['status'] = statusObj[tempItemRes['status']];
+			tempItemRes['taskCategory'] = categoryObj[tempItemRes['taskCategory']];
+		}
+
+		return generateReturnObj("Success", 0, tempItemRes, "");
+	} else {
+		return generateReturnObj("Error", 2, "", "Unable to retrieve task information.");
+	}
 }
 
 todoSchema.statics.getTaskList = async function(params) {
 	const {
 		page = 1,
 		limit = 10,
+		filters = {}
 	} = params;
 
 	const skip = (page - 1) * limit;
 
 	let matchCondition = {};
+	let sortBy = {};
+
+	if (filters) {
+		const specialConditionsKey = [
+			"sort",
+			"order",
+			"taskDescription",
+			"limit"
+		];
+
+		Object.keys(filters).forEach((item, index) => {
+			if (!specialConditionsKey.includes(item)) {
+				matchCondition[item] = filters[item];
+			}
+		});
+
+		if (filters['taskDescription']) {
+			matchCondition['task_description'] = new RegExp(filters['taskDescription'], 'i');
+		}
+
+		let orderBy = -1;
+
+		if (filters['order'] == "ascending") {
+			orderBy = 1
+		}
+
+		if (filters['sort'] == "sort") {
+			sortBy = {
+				[filters['sort']]: orderBy
+			}
+		} else {
+			sortBy = {
+				createdAt: orderBy
+			}
+		}
+	}
 
 	const taskListRes = await this.aggregate([
 		{
@@ -100,9 +207,7 @@ todoSchema.statics.getTaskList = async function(params) {
 			}
 		},
 		{
-			$sort: {
-				createdAt: -1
-			}
+			$sort: sortBy
 		},
 		{
 			$skip: skip
@@ -115,8 +220,20 @@ todoSchema.statics.getTaskList = async function(params) {
 	const taskPaginationRes = await this.getPagination({listingCondition: matchCondition, page: page, limit: limit});
 
 	if (taskListRes && taskListRes.length > 0) {
+		let taskListing = [];
+		const statusObj = await this.getTaskStatus(true);
+		const categoryObj = await this.getTaskCategory(true);
+
+		taskListRes.forEach((item, index) => {
+			taskListing.push({
+				...item,
+				taskCategory: categoryObj[item.taskCategory],
+				status: statusObj[item.status]
+			});
+		});
+
 		let listingObj = {
-			listing: taskListRes,
+			listing: taskListing,
 			pagination: taskPaginationRes
 		}
 
@@ -194,7 +311,7 @@ todoSchema.statics.addTask = async function(params) {
 		}
 
 		if (errorField && errorField.length > 0) {
-			return generateReturnObj("Error", 3, errorField, "Form error");
+			return generateReturnObj("Error", 1, {field: errorField}, "Form error");
 		}
 
 		const tasksRes = await this.aggregate([
@@ -222,6 +339,8 @@ todoSchema.statics.addTask = async function(params) {
 
 		if (tasksRes && tasksRes.length > 0) {
 			latestTaskOrderNum = Number(tasksRes[0]['order']) + 1;
+		} else if (paramData['status'] === "complete") {
+			latestTaskOrderNum = 0;
 		}
 
 
