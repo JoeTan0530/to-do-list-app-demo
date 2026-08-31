@@ -85,7 +85,27 @@ todoSchema.statics.getTaskCategory = async function(internalUse = false) {
 	}
 }
 
-todoSchema.statics.getTaskItem = async function (params) {
+todoSchema.statics.getDashboardData = async function () {
+	const dashboardRes = await this.aggregate([
+		{
+			$group: {
+				_id: null,
+				total: { $sum: 1 },
+				incomplete: {
+					$sum: { $cond: [{ $eq: ["$status", "incomplete"] }, 1, 0] }
+				},
+				complete: {
+					$sum: { $cond: [{ $eq: ["$status", "complete"] }, 1, 0] }
+				}
+			}
+		}
+	]);
+
+	const stats = dashboardRes[0] || { total: 0, incomplete: 0, complete: 0 };
+	return generateReturnObj("Success", 0, stats, "Successfully retrived dashboard data.");
+}
+
+todoSchema.statics.getTaskItem = async function (props) {
 	const {
 		taskID,
 		editUse = false
@@ -118,7 +138,7 @@ todoSchema.statics.getTaskItem = async function (params) {
 	if (taskItemRes && taskItemRes.length > 0) {
 		let tempItemRes = taskItemRes[0];
 
-		if (editUse) {
+		if (!editUse) {
 			const statusObj = await this.getTaskStatus(true);
 			const categoryObj = await this.getTaskCategory(true);
 
@@ -168,7 +188,7 @@ todoSchema.statics.getTaskList = async function(params) {
 			orderBy = 1
 		}
 
-		if (filters['sort'] == "sort") {
+		if (filters['sort'] && filters['sort'] !== "") {
 			sortBy = {
 				[filters['sort']]: orderBy
 			}
@@ -179,10 +199,16 @@ todoSchema.statics.getTaskList = async function(params) {
 		}
 	}
 
-	const taskListRes = await this.aggregate([
+	const queryPipeline = [
 		{
 			$match: matchCondition
 		}, 
+		{
+			$sort: sortBy
+		},
+		{
+			$skip: skip
+		},
 		{
 			$project: {
 				_id: 0,
@@ -198,6 +224,12 @@ todoSchema.statics.getTaskList = async function(params) {
 						date: "$due_date"
 					}
 				},
+				completedDate: {
+					$dateToString: {
+						format: "%Y-%m-%d",
+						date: "$completed_date"
+					}
+				},
 				createdAt: {
 					$dateToString: {
 						format: "%Y-%m-%d %H:%M:%S",
@@ -205,17 +237,14 @@ todoSchema.statics.getTaskList = async function(params) {
 					}
 				}
 			}
-		},
-		{
-			$sort: sortBy
-		},
-		{
-			$skip: skip
-		},
-		{
-			$limit: limit
 		}
-	]);
+	];
+
+	if (limit && limit > 0) {
+		queryPipeline.push({ $limit: limit });
+	}
+
+	const taskListRes = await this.aggregate(queryPipeline);
 
 	const taskPaginationRes = await this.getPagination({listingCondition: matchCondition, page: page, limit: limit});
 
@@ -228,7 +257,8 @@ todoSchema.statics.getTaskList = async function(params) {
 			taskListing.push({
 				...item,
 				taskCategory: categoryObj[item.taskCategory],
-				status: statusObj[item.status]
+				status: item.status,
+				statusDisplay: statusObj[item.status],
 			});
 		});
 
@@ -391,7 +421,7 @@ todoSchema.statics.editTask = async function(params) {
 		}
 
 		if (errorField && errorField.length > 0) {
-			return generateReturnObj("Error", 3, errorField, "Form error");
+			return generateReturnObj("Error", 3, {field: errorField}, "Form error");
 		}
 
 		const taskItem = await this.findById(verifiedTaskID);
@@ -445,15 +475,48 @@ todoSchema.statics.updateTaskStatus = async function (params) {
 		return generateReturnObj("Error", 2, "", "Invalid task ID.");
 	}
 
-	if (!status || status != "") {
+	if (!status || status == "") {
 		return generateReturnObj("Error", 2, "", "Invalid status.");
 	}
 
 	const taskItem = await this.findById(verifiedTaskID);
 
 	if (taskItem) {
+		let latestTaskOrderNum = 0;
+
+		if (status == "incomplete") {
+			const tasksRes = await this.aggregate([
+				{
+					$match: {
+						status: "incomplete"
+					}
+				},
+				{
+					$project: {
+						order: 1
+					}
+				},
+				{
+					$sort: {
+						order: -1
+					}
+				},
+				{
+					$limit: 1
+				}
+			]);
+
+			if (tasksRes && tasksRes.length > 0) {
+				latestTaskOrderNum = Number(tasksRes[0]['order']) + 1;
+			}
+
+			taskItem.completed_date = null;
+		} else {
+			taskItem.completed_date = new Date();
+		}
+
 		taskItem.status = status;
-		taskItem.order = 0;
+		taskItem.order = latestTaskOrderNum;
 
 		await taskItem.save();
 
@@ -463,21 +526,115 @@ todoSchema.statics.updateTaskStatus = async function (params) {
 	}
 }
 
-todoSchema.statics.reorderingTask = async function (params) {
+todoSchema.statics.importTasks = async function (props) {
 	const {
-		reorderedTaskList
-	} = params;
+		tasks
+	} = props;
 
-	const operations = reorderedTaskList.map((item) => ({
-		updateOne: {
-			filter: { _id: new mongoose.Types.ObjectId(item.taskID) },
-			update: { $set: { order: item.order } }
+	if (tasks && tasks.length == 0) {
+		return generateReturnObj("Error", 2, "", "Unable to import task list.");
+	}
+
+	let latestTaskOrderNum = 0;
+
+	const tasksRes = await this.aggregate([
+		{
+			$match: {
+				status: "incomplete"
+			}
+		},
+		{
+			$project: {
+				order: 1
+			}
+		},
+		{
+			$sort: {
+				order: -1
+			}
+		},
+		{
+			$limit: 1
 		}
-	}));
+	]);
 
-	const result = await this.bulkWrite(operations);
+	if (tasksRes && tasksRes.length > 0) {
+		latestTaskOrderNum = Number(tasksRes[0]['order']);
+	} 
 
-	return generateReturnObj("Success", 0, "", "Successfully rearranged task record.");
+	let importedTasks = [];
+
+	tasks.forEach((task, index) => {
+		importedTasks.push({
+			...task,
+			order: (task['status'] === "incomplete" ? ++latestTaskOrderNum : 0)
+		});
+	});
+
+	const importTasksRes = await this.insertMany(importedTasks);
+
+	if (importTasksRes) {
+		return generateReturnObj("Success", 0, "", `Successfully imported ${importTasksRes.length} tasks.`);
+	} else {
+		return generateReturnObj("Error", 2, "", "Unable to import tasks, please contact admin.");
+	}
+
 }
+
+todoSchema.statics.reorderingTask = async function (params) {
+  const {
+    page = 1,
+    limit = 10,
+    reorderedTaskList = [] // array of task IDs in new order for this page
+  } = params;
+
+  if (!reorderedTaskList || reorderedTaskList.length === 0) {
+    return generateReturnObj("Error", 1, "", "Invalid reorder list.");
+  }
+
+  // 1. Fetch all incomplete tasks sorted by order ascending
+  const allTasks = await this.find({ status: 'incomplete' })
+    .sort({ order: 1 })
+    .lean();
+
+  // 2. Build a map of task ID to its current position in the full list
+  const taskIdToIndex = {};
+  allTasks.forEach((task, idx) => {
+    taskIdToIndex[task._id.toString()] = idx;
+  });
+
+  // 3. Validate that all IDs in reorderedTaskList exist and are incomplete
+  const invalidIds = reorderedTaskList.filter(id => !taskIdToIndex.hasOwnProperty(id));
+  if (invalidIds.length > 0) {
+    return generateReturnObj("Error", 2, "", `Invalid task IDs: ${invalidIds.join(', ')}`);
+  }
+
+  // 4. Calculate the start index of the current page
+  const startIndex = (page - 1) * limit;
+  const endIndex = Math.min(startIndex + limit, allTasks.length);
+
+  // 5. Extract the current page's task IDs (the segment we are replacing)
+  const currentPageIds = allTasks.slice(startIndex, endIndex).map(task => task._id.toString());
+
+  // 6. Build the new full order: replace the page segment with reorderedTaskList
+  const newFullOrder = [
+    ...allTasks.slice(0, startIndex).map(task => task._id.toString()),
+    ...reorderedTaskList,
+    ...allTasks.slice(endIndex).map(task => task._id.toString())
+  ];
+
+  // 7. Assign new order numbers (1..N) based on the new full order
+  const bulkOps = newFullOrder.map((id, index) => ({
+    updateOne: {
+      filter: { _id: new mongoose.Types.ObjectId(id) },
+      update: { $set: { order: index + 1 } }
+    }
+  }));
+
+  // 8. Execute bulk write
+  const result = await this.bulkWrite(bulkOps);
+
+  return generateReturnObj("Success", 0, "", "Successfully rearranged task records.");
+};
 
 export const Todo = mongoose.models.Todo || mongoose.model('Todo', todoSchema);

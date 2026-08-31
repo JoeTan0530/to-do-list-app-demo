@@ -25,8 +25,14 @@ export async function POST(request: Request) {
 			case "getTaskCategory":
 				response = await Todo.getTaskCategory();
 				break;
+			case "getDashboardData":
+				response = await Todo.getDashboardData();
+				break;
 			case "getTaskList":
 				response = await Todo.getTaskList(params);
+				break;
+			case "getTaskItem":
+				response = await Todo.getTaskItem(params);
 				break;
 			case "addTask":
 				response = await Todo.addTask(params);
@@ -39,6 +45,9 @@ export async function POST(request: Request) {
 				break;
 			case "updateTaskStatus":
 				response = await Todo.updateTaskStatus(params);
+				break;
+			case "importTasks":
+				response = await Todo.importTasks(params);
 				break;
 			case "reorderingTask":
 				response = await Todo.reorderingTask(params);
