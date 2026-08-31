@@ -1,101 +1,109 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, useId } from "react";
-import Select from "react-select";
+import Select, { SingleValue, GroupBase, SelectInstance } from "react-select";
+
+// ============================================================
+// Types
+// ============================================================
+type OptionType = { value: string; label: string };
 
 interface CustomSelectProps {
-	selectOptions: [],
-	handleSelectValue?: Function,
-	placeholderDisplay?: string,
-	selectID?: string,
-	getInputDataKey?: string,
-	currentValue?: string,
-	customSelectRef?: React.Ref<HTMLDivElement>,
+  selectOptions: OptionType[];
+  handleSelectValue?: (event: { target: { id: string; value: any } }) => void;
+  placeholderDisplay?: string;
+  selectID?: string;
+  getInputDataKey?: string;
+  currentValue?: string | number;
+  customSelectRef?: React.Ref<{ resetInput: () => void }>;
 }
 
 const CustomSelect: React.FC<CustomSelectProps> = (props) => {
-	/* 
-		For the getInputDataKey by default it will use "id" 
-		but if for the handle onChange function you're using
-		"name" or whatever other props to get the input value
-		you can use 'getInputDataKey' props to overwrite it.
-	 */
+  const {
+    selectOptions,
+    handleSelectValue,
+    placeholderDisplay = "",
+    selectID,
+    getInputDataKey = "id",
+    currentValue = "",
+    customSelectRef,
+  } = props;
 
-	const {
-		selectOptions,
-		handleSelectValue,
-		placeholderDisplay = "",
-		selectID,
-		getInputDataKey = "id",
-		currentValue = "",
-		customSelectRef,
-	} = props;
+  // Build option list
+  const optionList: OptionType[] =
+    selectOptions && selectOptions.length > 0
+      ? [...selectOptions]
+      : [{ value: "", label: "" }];
 
-	let optionList = selectOptions ? [...selectOptions] : [{ value: "", label: "" }];
-	const uniqueID = useId();
-	const displayID = selectID || `select-${uniqueID}`;
+  const uniqueID = useId();
+  const displayID = selectID || `select-${uniqueID}`;
 
-	const [displayType, setDisplayType] = useState(optionList[0]);
-	const selectRef = useRef();
+  const [displayType, setDisplayType] = useState<OptionType>(optionList[0]);
 
-	useImperativeHandle(customSelectRef, () => ({
-		resetInput: () => {
-			triggerReset();
-		}
-	}));
+  // Ref for react-select – using SelectInstance to avoid generic issues
+  const selectRef = useRef<SelectInstance<OptionType, false, GroupBase<OptionType>> | null>(null);
 
-	useEffect(() => {
-		let currOption = { value: "", label: "" };
-		if (currentValue || currentValue === 0) {
-			let tempObj = optionList.find((item) => {
-				return item.value === currentValue;
-			});
+  // Expose resetInput via ref
+  useImperativeHandle(customSelectRef, () => ({
+    resetInput: () => {
+      triggerReset();
+    },
+  }));
 
-			currOption = tempObj;
-		} else {
-			currOption = optionList[0];
-		}
+  // Sync with currentValue prop
+  useEffect(() => {
+    let currOption: OptionType = { value: "", label: "" };
+    if (currentValue !== undefined && currentValue !== "" && currentValue !== null) {
+      const found = optionList.find((item) => item.value === String(currentValue));
+      currOption = found || optionList[0];
+    } else {
+      currOption = optionList[0];
+    }
+    setDisplayType(currOption);
+  }, [optionList, currentValue]);
 
-		setDisplayType(currOption);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [optionList, currentValue]);
+  const triggerChange = (onChangeVal: OptionType) => {
+    if (!handleSelectValue) return;
+    const inputRef = (selectRef.current as any)?.inputRef;
+    const id = inputRef?.[getInputDataKey] || displayID;
+    handleSelectValue({
+      target: {
+        id,
+        value: onChangeVal.value,
+      },
+    });
+  };
 
-	const triggerChange = (onChangeVal) => {
-		const inputRef = selectRef.current.inputRef;
-		handleSelectValue({
-			target: {
-				id: inputRef[getInputDataKey],
-				value: onChangeVal.value
-			}
-		});
-	}
+  const triggerReset = () => {
+    setDisplayType(optionList[0]);
+  };
 
-	const triggerReset = () => {
-		setDisplayType(optionList[0]);
-	}
+  const handleChange = (newValue: SingleValue<OptionType>) => {
+    if (newValue) {
+      setDisplayType(newValue);
+      triggerChange(newValue);
+    }
+  };
 
-	return (
-		<Select
-			inputId={displayID}
-			instanceId={displayID}
-			ref={selectRef}
-			className="form-select bg-gray-100 border border-gray-300 rounded-lg"
-			classNamePrefix="form-select"
-			options={optionList}
-			value={displayType}
-			onChange={(event) => {
-				setDisplayType(event);
-				triggerChange(event);
-			}}
-			placeholder={placeholderDisplay}
-			styles={{
-				control: (base) => ({
-					...base,
-					border: "none",
-					boxShadow: "none"
-				})
-			}}
-			components={{ IndicatorSeparator: () => null }}
-		/>
-	)
-}
+  return (
+    <Select
+      inputId={displayID}
+      instanceId={displayID}
+      ref={selectRef}
+      className="form-select bg-gray-100 border border-gray-300 rounded-lg"
+      classNamePrefix="form-select"
+      options={optionList}
+      value={displayType}
+      onChange={handleChange}
+      placeholder={placeholderDisplay}
+      styles={{
+        control: (base) => ({
+          ...base,
+          border: "none",
+          boxShadow: "none",
+        }),
+      }}
+      components={{ IndicatorSeparator: () => null }}
+    />
+  );
+};
 
 export default CustomSelect;

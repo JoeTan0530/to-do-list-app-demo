@@ -13,11 +13,11 @@ import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 
 export default function CalendarPage() {
   const router = useRouter();
-  const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks] = useState<any[]>([]);
 
   const fetchTasks = () => {
     // Fetch all tasks (no pagination, filter by due date if needed)
-    getTaskList({ limit: 0 }, (data, msg) => {
+    getTaskList({ limit: 0 }, (data: any, msg: string) => {
       setTasks(data.listing || []);
     });
   };
