@@ -1,10 +1,18 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useId } from 'react';
 import { useDrag, useDrop, DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGripVertical, faEdit, faEye, faTrash } from '@fortawesome/free-solid-svg-icons';
+import {
+  faGripVertical,
+  faEdit,
+  faEye,
+  faTrash,
+  faSquare,
+  faSquareCheck,
+} from '@fortawesome/free-solid-svg-icons';
+import CustomPagination from './CustomPagination';
 
 // ============================================================
 // Types
@@ -32,6 +40,8 @@ interface CustomDraggableTableProps {
   onView?: (item: any) => void;
   /** Callback for delete action */
   onDelete?: (item: any) => void;
+  /** Callback for toggling task status (complete/incomplete) */
+  onToggleStatus?: (item: any) => void;
   /** Whether to show action buttons (default: true) */
   showActions?: boolean;
   /** Optional custom class for the table container */
@@ -40,6 +50,10 @@ interface CustomDraggableTableProps {
   rowClassName?: string;
   /** Optional custom class for cells */
   cellClassName?: string;
+  /** Pagination data from the parent */
+  pagingData?: any;
+  /** Function to call when a page is clicked */
+  pagingFunction?: (page: number) => void;
 }
 
 // ============================================================
@@ -55,6 +69,7 @@ interface DraggableRowProps {
   onEdit?: (item: any) => void;
   onView?: (item: any) => void;
   onDelete?: (item: any) => void;
+  onToggleStatus?: (item: any) => void;
   rowClassName?: string;
   cellClassName?: string;
 }
@@ -69,6 +84,7 @@ const DraggableRow: React.FC<DraggableRowProps> = ({
   onEdit,
   onView,
   onDelete,
+  onToggleStatus,
   rowClassName,
   cellClassName,
 }) => {
@@ -136,10 +152,23 @@ const DraggableRow: React.FC<DraggableRowProps> = ({
       {showActions && (
         <td className={`p-2 text-center ${cellClassName || ''}`}>
           <div className="flex justify-center gap-2">
+            {/* Toggle Status Button */}
+            {onToggleStatus && (
+              <button
+                onClick={() => onToggleStatus(row)}
+                className="cursor-pointer"
+                title={row.status === 'complete' ? 'Mark as incomplete' : 'Mark as complete'}
+              >
+                <FontAwesomeIcon
+                  icon={row.status === 'complete' ? faSquareCheck : faSquare}
+                  className={row.status === 'complete' ? 'text-green-500' : 'text-gray-400'}
+                />
+              </button>
+            )}
             {onView && (
               <button
                 onClick={() => onView(row)}
-                className="text-blue-500 hover:text-blue-700"
+                className="text-blue-500 hover:text-blue-700 cursor-pointer"
                 title="View"
               >
                 <FontAwesomeIcon icon={faEye} />
@@ -148,7 +177,7 @@ const DraggableRow: React.FC<DraggableRowProps> = ({
             {onEdit && (
               <button
                 onClick={() => onEdit(row)}
-                className="text-yellow-500 hover:text-yellow-700"
+                className="text-yellow-500 hover:text-yellow-700 cursor-pointer"
                 title="Edit"
               >
                 <FontAwesomeIcon icon={faEdit} />
@@ -157,7 +186,7 @@ const DraggableRow: React.FC<DraggableRowProps> = ({
             {onDelete && (
               <button
                 onClick={() => onDelete(row)}
-                className="text-red-500 hover:text-red-700"
+                className="text-red-500 hover:text-red-700 cursor-pointer"
                 title="Delete"
               >
                 <FontAwesomeIcon icon={faTrash} />
@@ -182,11 +211,16 @@ const CustomDraggableTable: React.FC<CustomDraggableTableProps> = ({
   onEdit,
   onView,
   onDelete,
+  onToggleStatus,
   showActions = true,
   className = '',
   rowClassName = '',
   cellClassName = '',
+  pagingData,
+  pagingFunction,
 }) => {
+  const uniqueID = useId();
+  const tableContainerID = tableId || `draggable-table-${uniqueID}`;
   // Internal state for the ordered list
   const [items, setItems] = useState(data);
 
@@ -206,55 +240,67 @@ const CustomDraggableTable: React.FC<CustomDraggableTableProps> = ({
   };
 
   return (
-    <DndProvider backend={HTML5Backend}>
-      <div className={`w-full overflow-x-auto ${className}`}>
-        <table className="min-w-full bg-white border border-gray-200">
-          <thead className="bg-gray-100">
-            <tr>
-              {/* Drag handle column header */}
-              <th className="p-2 text-left text-sm font-semibold text-gray-600 w-10">
-                <span className="sr-only">Drag</span>
-              </th>
-              {columns.map((col) => (
-                <th key={col.key} className="p-2 text-left text-sm font-semibold text-gray-600">
-                  {col.header}
-                </th>
-              ))}
-              {showActions && (
-                <th className="p-2 text-center text-sm font-semibold text-gray-600 w-24">
-                  Actions
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((row, index) => (
-              <DraggableRow
-                key={row[rowKey] || index}
-                row={row}
-                index={index}
-                moveRow={moveRow}
-                columns={columns}
-                rowKey={rowKey}
-                showActions={showActions}
-                onEdit={onEdit}
-                onView={onView}
-                onDelete={onDelete}
-                rowClassName={rowClassName}
-                cellClassName={cellClassName}
-              />
-            ))}
-            {items.length === 0 && (
+    <div key={tableContainerID}>
+      <DndProvider backend={HTML5Backend}>
+        <div className={`w-full overflow-x-auto ${className}`}>
+          <table className="min-w-full bg-white border border-gray-200">
+            <thead className="bg-gray-100">
               <tr>
-                <td colSpan={columns.length + 2} className="p-4 text-center text-gray-500">
-                  No data available
-                </td>
+                {/* Drag handle column header */}
+                <th className="p-2 text-left text-sm font-semibold text-gray-600 w-10">
+                  <span className="sr-only">Drag</span>
+                </th>
+                {columns.map((col) => (
+                  <th key={col.key} className="p-2 text-left text-sm font-semibold text-gray-600">
+                    {col.header}
+                  </th>
+                ))}
+                {showActions && (
+                  <th className="p-2 text-center text-sm font-semibold text-gray-600 w-24">
+                    Actions
+                  </th>
+                )}
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </DndProvider>
+            </thead>
+            <tbody>
+              {items.map((row, index) => (
+                <DraggableRow
+                  key={row[rowKey] || index}
+                  row={row}
+                  index={index}
+                  moveRow={moveRow}
+                  columns={columns}
+                  rowKey={rowKey}
+                  showActions={showActions}
+                  onEdit={onEdit}
+                  onView={onView}
+                  onDelete={onDelete}
+                  onToggleStatus={onToggleStatus}
+                  rowClassName={rowClassName}
+                  cellClassName={cellClassName}
+                />
+              ))}
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan={columns.length + 2} className="p-4 text-center text-gray-500">
+                    No data available
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </DndProvider>
+      {pagingData && (
+        <div className="mt-5">
+          <CustomPagination
+            pagingID={tableContainerID}
+            pagingData={pagingData}
+            pagingFunction={pagingFunction}
+          />
+        </div>
+      )}
+    </div>
   );
 };
 

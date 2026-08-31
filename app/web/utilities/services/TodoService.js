@@ -38,6 +38,18 @@ export const addTask = (payload, callback, errorState) => {
   apiCaller("POST", params, callback, errorState);
 };
 
+export const editTask = (payload, callback, errorState) => {
+  const params = {
+    url: getTodoApiUrl(),
+    urlParams: {
+      command: "editTask",
+      params: payload,
+    },
+  };
+
+  apiCaller("POST", params, callback, errorState);
+};
+
 
 export const getTaskList = (payload, callback) => {
   const params = {
@@ -50,3 +62,75 @@ export const getTaskList = (payload, callback) => {
 
   apiCaller("POST", params, callback);
 };
+
+export const getDashboardData = (callback) => {
+  const params = {
+    url: getTodoApiUrl(),
+    urlParams: {
+      command: "getDashboardData"
+    }
+  };
+
+  apiCaller("POST", params, callback);
+}
+
+export const getTaskItem = (payload, callback) => {
+  const params = {
+    url: getTodoApiUrl(),
+    urlParams: {
+      command: "getTaskItem",
+      params: payload,
+    },
+  };
+
+  apiCaller("POST", params, callback);
+};
+
+
+export const importTasks = (payload, callback) => {
+  const params = {
+    url: getTodoApiUrl(),
+    urlParams: {
+      command: "importTasks",
+      params: payload
+    }
+  }
+
+  apiCaller("POST", params, callback);
+}
+
+export const removeTask = (payload, callback) => {
+  const params = {
+    url: getTodoApiUrl(),
+    urlParams: {
+      command: "removeTask",
+      params: payload
+    }
+  }
+
+  apiCaller("POST", params, callback); 
+}
+
+export const reorderingTask = (payload, callback) => {
+  const params = {
+    url: getTodoApiUrl(),
+    urlParams: {
+      command: "reorderingTask",
+      params: payload
+    }
+  }
+
+  apiCaller("POST", params, callback);
+}
+
+export const updateTaskStatus = (payload, callback) => {
+  const params = {
+    url: getTodoApiUrl(),
+    urlParams: {
+      command: "updateTaskStatus",
+      params: payload
+    }
+  }
+
+  apiCaller("POST", params, callback);
+}

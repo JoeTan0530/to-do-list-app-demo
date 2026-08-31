@@ -6,6 +6,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 // Import specific icons
 import { faEyeSlash, faEye } from '@fortawesome/free-solid-svg-icons';
 
+import toast from 'react-hot-toast';
+
 const getAuthHeaders = () => {
 	const headers = {
 		"Content-Type": "application/json",
@@ -126,31 +128,20 @@ function callApiSuccess(res, fCallback, setErrMsg, param) {
 function errorHandling(code, msg) {
 	switch (code) {
 		case 1:
+			toast.error(msg);
 			console.log(msg, 'warning');
 			break;
 		case 2:
+			toast.error(msg);
 			console.log(msg, 'error');
 			break;
 		case 3:
+			toast.error(msg);
 			console.log(msg, 'error');
 			break;
 		default:
 			console.log('Default Error');
 	}
-}
-
-export const logoutUser = () => {
-	localStorage.removeItem("sessionToken");
-	localStorage.removeItem("fullName");
-	localStorage.removeItem("email");
-
-	setTimeout(() => {
-		window.location.href = '/';
-	}, 1500);
-}
-
-export const generateRandomColorCode = () => {
-	return `${"#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
 }
 
 export const restrictNumberOnly = (inputEvent, sort = "normal", inputDecimal) => {

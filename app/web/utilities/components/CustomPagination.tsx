@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useId } from "react";
 import { Pagination } from "react-bootstrap";
 
 interface CustomPaginationProps {
@@ -22,7 +22,10 @@ const CustomPagination: React.FC<CustomPaginationProps> = (props) => {
 	const [displayPagingItem, setDisplayPagingItem] = useState([]);
 	const [displayPagingItemMobile, setDisplayPagingItemMobile] = useState([]);
 
-	const pagingRowID = pagingID || "pager" + document.getElementsByClassName('pagination-container').length;
+	const uniqueID = useId();
+	const pagingRowID = pagingID || "pager-" + uniqueID;
+
+	const btnClassName = "py-1 px-3 mx-1 hover:bg-blue-100 rounded-lg cursor-pointer";
 
 	const pagerItemsObj = {
 		pagerLeftInterval: 4,
@@ -85,6 +88,7 @@ const CustomPagination: React.FC<CustomPaginationProps> = (props) => {
 			pagingItem.push(
 				<Pagination.Item
 					key={`${pagingRowID}Pagination${i}${isMobile ? "Mobile" : ""}`}
+					// className={btnClassName}
 					active={i === currPage ? true : false}
 					onClick={() => {
 						handlePagingFunction(i);
@@ -141,17 +145,19 @@ const CustomPagination: React.FC<CustomPaginationProps> = (props) => {
 
 	return (
 		<div className="pagination-container">
-			<div className="d-none d-md-flex justify-content-center align-items-center w-100">
-				<Pagination>
+			<div className="hidden md:flex flex-row justify-center items-center w-full">
+				<Pagination className="flex flex-row">
 					{pagingData.pageNumber > 1 && (
 						<>
 							<Pagination.First
+								// className={btnClassName}
 								onClick={() => {
 									handlePagingFunction(1);
 								}}>
 								First
 							</Pagination.First>
 							<Pagination.Prev
+								// className={btnClassName}
 								onClick={() => {
 									handlePagingFunction("prev");
 								}}
@@ -162,11 +168,13 @@ const CustomPagination: React.FC<CustomPaginationProps> = (props) => {
 					{pagingData.pageNumber !== pagingData.totalPage && (
 						<>
 							<Pagination.Next
+								// className={btnClassName}
 								onClick={()=> {
 									handlePagingFunction("next");
 								}}
 							/>
 							<Pagination.Last
+								// className={btnClassName}
 								onClick={()=> {
 									handlePagingFunction(pagingData.totalPage);
 								}}>
@@ -176,17 +184,19 @@ const CustomPagination: React.FC<CustomPaginationProps> = (props) => {
 					)}
 				</Pagination>
 			</div>
-			<div className="d-flex d-md-none justify-content-center align-items-center w-100">
-				<Pagination>
+			<div className="flex md:hidden flex-row justify-center items-center w-full">
+				<Pagination className="flex flex-row">
 					{pagingData.pageNumber > 1 && (
 						<>
 							<Pagination.First
+								// className={btnClassName}
 								onClick={() => {
 									handlePagingFunction(1);
 								}}>
 								First
 							</Pagination.First>
 							<Pagination.Prev
+								// className={btnClassName}
 								onClick={() => {
 									handlePagingFunction("prev");
 								}}
@@ -197,11 +207,13 @@ const CustomPagination: React.FC<CustomPaginationProps> = (props) => {
 					{pagingData.pageNumber !== pagingData.totalPage && (
 						<>
 							<Pagination.Next
+								// className={btnClassName}
 								onClick={()=> {
 									handlePagingFunction("next");
 								}}
 							/>
 							<Pagination.Last
+								// className={btnClassName}
 								onClick={()=> {
 									handlePagingFunction(pagingData.totalPage);
 								}}>

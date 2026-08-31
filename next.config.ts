@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
       {
         source: "/Form",
         destination: "/web/form"
+      },
+      {
+        source: "/Calendar",
+        destination: "/web/calendar"
       }
     ];
   }

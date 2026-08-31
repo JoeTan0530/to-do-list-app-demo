@@ -34,3 +34,19 @@ body {
   background-color: inherit !important; 
   border-radius: inherit !important;
 }
+
+.visually-hidden {
+  display: none;
+}
+
+.pagination-container .page-link {
+  @apply text-lg py-1 px-3 mx-1 hover:bg-blue-100 rounded-lg cursor-pointer;
+}
+
+.pagination-container .page-item.active > .page-link {
+  @apply bg-blue-100;
+}
+
+.calendar-container .react-calendar {
+  width: 100% !important;
+}
