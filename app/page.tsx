@@ -91,7 +91,7 @@ export default function HomePage() {
       id: "total",
       icon: <FontAwesomeIcon icon={faBars} />,
       label: "Total Task",
-      value: "Hexagone",
+      value: "",
     },
     {
       id: "incomplete",
@@ -99,7 +99,7 @@ export default function HomePage() {
       iconBg: "bg-yellow-200",
       iconColor: "text-yellow-400",
       label: "Incomplete",
-      value: "Digimon",
+      value: "",
     },
     {
       id: "complete",
@@ -107,7 +107,7 @@ export default function HomePage() {
       iconBg: "bg-green-200",
       iconColor: "text-green-400",
       label: "Completed",
-      value: "Holington",
+      value: "",
     },
   ]);
 
