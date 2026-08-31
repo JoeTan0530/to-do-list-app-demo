@@ -1,640 +1,532 @@
-import mongoose from "mongoose";
+// lib/models/Todo.ts
+
+import mongoose, { Schema } from "mongoose";
 import { generateReturnObj, verifyIdFormat } from '../utilities/general.js';
 
-const todoSchema = new mongoose.Schema({
-	task_name: {
-		type: String,
-		required: true
-	},
-	task_description: {
-		type: String,
-	},
-	task_category: {
-		type: String,
-		required: true
-	},
-	status: {
-		type: String,
-		required: true
-	},
-	due_date: {
-		type: Date
-	},
-	completed_date: {
-		type: Date
-	},
-	order: { type: Number, default: 0 }
+// ============================================================
+// Types
+// ============================================================
+interface ITask {
+  task_name: string;
+  task_description?: string;
+  task_category: string;
+  status: string;
+  due_date?: Date;
+  completed_date?: Date;
+  order: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+// Static methods interface
+interface ITodoModel extends mongoose.Model<ITask> {
+  getTaskStatus(internalUse?: boolean): Promise<any>;
+  getTaskCategory(internalUse?: boolean): Promise<any>;
+  getDashboardData(): Promise<any>;
+  getTaskItem(params: { taskID: string; editUse?: boolean }): Promise<any>;
+  getTaskList(params: any): Promise<any>;
+  getPagination(params: { listingCondition: any; page: number; limit: number }): Promise<any>;
+  addTask(params: any): Promise<any>;
+  editTask(params: any): Promise<any>;
+  removeTask(params: any): Promise<any>;
+  updateTaskStatus(params: any): Promise<any>;
+  importTasks(params: any): Promise<any>;
+  reorderingTask(params: any): Promise<any>;
+}
+
+// ============================================================
+// Schema Definition
+// ============================================================
+const todoSchema = new Schema<ITask, ITodoModel>({
+  task_name: {
+    type: String,
+    required: true,
+  },
+  task_description: {
+    type: String,
+  },
+  task_category: {
+    type: String,
+    required: true,
+  },
+  status: {
+    type: String,
+    required: true,
+  },
+  due_date: {
+    type: Date,
+  },
+  completed_date: {
+    type: Date,
+  },
+  order: { type: Number, default: 0 },
 }, {
-	timestamps: true
+  timestamps: true,
 });
 
-todoSchema.statics.getTaskStatus = async function(internalUse = false) {
+// ============================================================
+// Static Methods
+// ============================================================
 
-	const statusArr = [
-		{
-			label: "Incomplete",
-			value: "incomplete"
-		},
-		{
-			label: "Completed",
-			value: "complete"
-		}
-	];
+todoSchema.statics.getTaskStatus = async function (internalUse = false) {
+  const statusArr = [
+    { label: "Incomplete", value: "incomplete" },
+    { label: "Completed", value: "complete" },
+  ];
 
-	if (internalUse) {
-		let statusObj = {};
+  if (internalUse) {
+    const statusObj: Record<string, string> = {};
+    statusArr.forEach((item) => {
+      statusObj[item.value] = item.label;
+    });
+    return statusObj;
+  }
+  // ✅ Cast third argument to any
+  return generateReturnObj("Success", 0, statusArr as any, "");
+};
 
-		statusArr.forEach((item, index) => {
-			statusObj[item['value']] = item['label'];
-		});
+todoSchema.statics.getTaskCategory = async function (internalUse = false) {
+  const categoryArr = [
+    { label: "Work", value: "work" },
+    { label: "Personal", value: "personal" },
+    { label: "Urgent", value: "urgent" },
+  ];
 
-		return statusObj;
-
-	} else {
-		return generateReturnObj("Success", 0, statusArr, "");
-	}
-}
-
-todoSchema.statics.getTaskCategory = async function(internalUse = false) {
-
-	const categoryArr = [
-		{
-			label: "Work",
-			value: "work"
-		},
-		{
-			label: "Personal",
-			value: "personal"
-		},
-		{
-			label: "Urgent",
-			value: "urgent"
-		}
-	];
-
-	if (internalUse) {
-		let categoryObj = {};
-
-		categoryArr.forEach((item, index) => {
-			categoryObj[item['value']] = item['label'];
-		});
-
-		return categoryObj;
-	} else {
-		return generateReturnObj("Success", 0, categoryArr, "");
-	}
-}
+  if (internalUse) {
+    const categoryObj: Record<string, string> = {};
+    categoryArr.forEach((item) => {
+      categoryObj[item.value] = item.label;
+    });
+    return categoryObj;
+  }
+  // ✅ Cast third argument to any
+  return generateReturnObj("Success", 0, categoryArr as any, "");
+};
 
 todoSchema.statics.getDashboardData = async function () {
-	const dashboardRes = await this.aggregate([
-		{
-			$group: {
-				_id: null,
-				total: { $sum: 1 },
-				incomplete: {
-					$sum: { $cond: [{ $eq: ["$status", "incomplete"] }, 1, 0] }
-				},
-				complete: {
-					$sum: { $cond: [{ $eq: ["$status", "complete"] }, 1, 0] }
-				}
-			}
-		}
-	]);
+  const dashboardRes = await this.aggregate([
+    {
+      $group: {
+        _id: null,
+        total: { $sum: 1 },
+        incomplete: { $sum: { $cond: [{ $eq: ["$status", "incomplete"] }, 1, 0] } },
+        complete: { $sum: { $cond: [{ $eq: ["$status", "complete"] }, 1, 0] } },
+      },
+    },
+  ]);
 
-	const stats = dashboardRes[0] || { total: 0, incomplete: 0, complete: 0 };
-	return generateReturnObj("Success", 0, stats, "Successfully retrived dashboard data.");
-}
+  const stats = dashboardRes[0] || { total: 0, incomplete: 0, complete: 0 };
+  return generateReturnObj("Success", 0, stats as any, "Successfully retrieved dashboard data.");
+};
 
 todoSchema.statics.getTaskItem = async function (props) {
-	const {
-		taskID,
-		editUse = false
-	} = props;
+  const { taskID, editUse = false } = props;
 
-	const verifiedTaskID = verifyIdFormat(taskID);
+  const verifiedTaskID = verifyIdFormat(taskID);
+  if (verifiedTaskID.status && verifiedTaskID.status === "error") {
+    return verifiedTaskID;
+  }
 
-	if (verifiedTaskID['status'] && verifiedTaskID['status'] == "error") {
-		return verifiedTaskID;
-	}
+  const taskItemRes = await this.aggregate([
+    { $match: { _id: new mongoose.Types.ObjectId(verifiedTaskID) } },
+    {
+      $project: {
+        _id: 0,
+        taskName: "$task_name",
+        taskDescription: "$task_description",
+        taskCategory: "$task_category",
+        status: "$status",
+        dueDate: "$due_date",
+      },
+    },
+  ]);
 
-	const taskItemRes = await this.aggregate([
-		{
-			$match: {
-				_id: new mongoose.Types.ObjectId(verifiedTaskID),
-			}
-		},
-		{
-			$project: {
-				_id: 0,
-				taskName: "$task_name",
-				taskDescription: "$task_description",
-				taskCategory: "$task_category",
-				status: "$status",
-				dueDate: "$due_date",
-			}
-		}
-	]);
+  if (taskItemRes && taskItemRes.length > 0) {
+    let tempItemRes = taskItemRes[0];
 
-	if (taskItemRes && taskItemRes.length > 0) {
-		let tempItemRes = taskItemRes[0];
+    // If NOT for edit, we want to display the labels instead of raw values
+    if (!editUse) {
+      const statusObj = await this.getTaskStatus(true);
+      const categoryObj = await this.getTaskCategory(true);
+      tempItemRes.status = statusObj[tempItemRes.status] || tempItemRes.status;
+      tempItemRes.taskCategory = categoryObj[tempItemRes.taskCategory] || tempItemRes.taskCategory;
+    }
 
-		if (!editUse) {
-			const statusObj = await this.getTaskStatus(true);
-			const categoryObj = await this.getTaskCategory(true);
+    return generateReturnObj("Success", 0, tempItemRes as any, "");
+  } else {
+    return generateReturnObj("Error", 2, "", "Unable to retrieve task information.");
+  }
+};
 
-			tempItemRes['status'] = statusObj[tempItemRes['status']];
-			tempItemRes['taskCategory'] = categoryObj[tempItemRes['taskCategory']];
-		}
+todoSchema.statics.getTaskList = async function (params) {
+  const { page = 1, limit = 10, filters = {} } = params;
+  const skip = (page - 1) * limit;
 
-		return generateReturnObj("Success", 0, tempItemRes, "");
-	} else {
-		return generateReturnObj("Error", 2, "", "Unable to retrieve task information.");
-	}
-}
+  let matchCondition: any = {};
+  let sortBy: any = {};
 
-todoSchema.statics.getTaskList = async function(params) {
-	const {
-		page = 1,
-		limit = 10,
-		filters = {}
-	} = params;
+  if (filters) {
+    const specialConditionsKey = ["sort", "order", "taskDescription", "limit"];
 
-	const skip = (page - 1) * limit;
+    Object.keys(filters).forEach((item) => {
+      if (!specialConditionsKey.includes(item)) {
+        matchCondition[item] = filters[item];
+      }
+    });
 
-	let matchCondition = {};
-	let sortBy = {};
+    if (filters.taskDescription) {
+      matchCondition.task_description = new RegExp(filters.taskDescription, 'i');
+    }
 
-	if (filters) {
-		const specialConditionsKey = [
-			"sort",
-			"order",
-			"taskDescription",
-			"limit"
-		];
+    let orderBy = -1;
+    if (filters.order === "ascending") {
+      orderBy = 1;
+    }
 
-		Object.keys(filters).forEach((item, index) => {
-			if (!specialConditionsKey.includes(item)) {
-				matchCondition[item] = filters[item];
-			}
-		});
+    if (filters.sort && filters.sort !== "") {
+      sortBy = { [filters.sort]: orderBy };
+    } else {
+      sortBy = { createdAt: orderBy };
+    }
+  }
 
-		if (filters['taskDescription']) {
-			matchCondition['task_description'] = new RegExp(filters['taskDescription'], 'i');
-		}
+  const queryPipeline: any[] = [
+    { $match: matchCondition },
+    { $sort: sortBy },
+    { $skip: skip },
+    {
+      $project: {
+        _id: 0,
+        taskID: "$_id",
+        taskName: "$task_name",
+        taskDescription: "$task_description",
+        taskCategory: "$task_category",
+        status: 1,
+        order: 1,
+        dueDate: { $dateToString: { format: "%Y-%m-%d", date: "$due_date" } },
+        completedDate: { $dateToString: { format: "%Y-%m-%d", date: "$completed_date" } },
+        createdAt: { $dateToString: { format: "%Y-%m-%d %H:%M:%S", date: "$createdAt" } },
+      },
+    },
+  ];
 
-		let orderBy = -1;
+  if (limit && limit > 0) {
+    queryPipeline.push({ $limit: limit });
+  }
 
-		if (filters['order'] == "ascending") {
-			orderBy = 1
-		}
+  const taskListRes = await this.aggregate(queryPipeline);
+  const taskPaginationRes = await this.getPagination({
+    listingCondition: matchCondition,
+    page,
+    limit,
+  });
 
-		if (filters['sort'] && filters['sort'] !== "") {
-			sortBy = {
-				[filters['sort']]: orderBy
-			}
-		} else {
-			sortBy = {
-				createdAt: orderBy
-			}
-		}
-	}
+  if (taskListRes && taskListRes.length > 0) {
+    const taskListing: any[] = [];
+    const statusObj: Record<string, string> = await this.getTaskStatus(true);
+    const categoryObj: Record<string, string> = await this.getTaskCategory(true);
 
-	const queryPipeline = [
-		{
-			$match: matchCondition
-		}, 
-		{
-			$sort: sortBy
-		},
-		{
-			$skip: skip
-		},
-		{
-			$project: {
-				_id: 0,
-				taskID: "$_id",
-				taskName: "$task_name",
-				taskDescription: "$task_description",
-				taskCategory: "$task_category",
-				status: 1,
-				order: 1,
-				dueDate: {
-					$dateToString: {
-						format: "%Y-%m-%d",
-						date: "$due_date"
-					}
-				},
-				completedDate: {
-					$dateToString: {
-						format: "%Y-%m-%d",
-						date: "$completed_date"
-					}
-				},
-				createdAt: {
-					$dateToString: {
-						format: "%Y-%m-%d %H:%M:%S",
-						date: "$createdAt"
-					}
-				}
-			}
-		}
-	];
+    taskListRes.forEach((item) => {
+      taskListing.push({
+        ...item,
+        taskCategory: categoryObj[item.taskCategory] || item.taskCategory,
+        statusDisplay: statusObj[item.status] || item.status,
+        // keep original status for internal logic
+        status: item.status,
+      });
+    });
 
-	if (limit && limit > 0) {
-		queryPipeline.push({ $limit: limit });
-	}
+    const listingObj = {
+      listing: taskListing,
+      pagination: taskPaginationRes,
+    };
 
-	const taskListRes = await this.aggregate(queryPipeline);
+    // ✅ Cast third argument to any
+    return generateReturnObj("Success", 0, listingObj as any, "");
+  } else {
+    return generateReturnObj("Success", 0, "", "No result found");
+  }
+};
 
-	const taskPaginationRes = await this.getPagination({listingCondition: matchCondition, page: page, limit: limit});
+todoSchema.statics.getPagination = async function (params) {
+  const { listingCondition, page, limit } = params;
 
-	if (taskListRes && taskListRes.length > 0) {
-		let taskListing = [];
-		const statusObj = await this.getTaskStatus(true);
-		const categoryObj = await this.getTaskCategory(true);
+  const paginationRes = await this.aggregate([
+    { $match: listingCondition },
+    { $facet: { totalRecord: [{ $count: "count" }] } },
+  ]);
 
-		taskListRes.forEach((item, index) => {
-			taskListing.push({
-				...item,
-				taskCategory: categoryObj[item.taskCategory],
-				status: item.status,
-				statusDisplay: statusObj[item.status],
-			});
-		});
+  let paginationObj = {
+    pageNumber: 1,
+    numRecord: limit,
+    totalRecord: 0,
+    totalPage: 0,
+  };
 
-		let listingObj = {
-			listing: taskListing,
-			pagination: taskPaginationRes
-		}
+  if (paginationRes && paginationRes[0]?.totalRecord?.length > 0) {
+    const totalRecordData = paginationRes[0].totalRecord[0].count;
+    paginationObj = {
+      pageNumber: page,
+      numRecord: limit,
+      totalRecord: totalRecordData,
+      totalPage: Math.ceil(totalRecordData / limit),
+    };
+  }
 
-		return generateReturnObj("Success", 0, listingObj)
-	} else {
-		return generateReturnObj("Success", 0, "", "No result found");
-	}
-}
+  return paginationObj;
+};
 
-todoSchema.statics.getPagination = async function(params) {
-	const {
-		listingCondition,
-		page,
-		limit
-	} = params;
+todoSchema.statics.addTask = async function (params) {
+  const paramData = params;
 
-	const paginationRes = await this.aggregate([
-		{
-			$match: listingCondition
-		},
-		{
-			$facet: {
-				totalRecord: [
-					{
-						$count: "count"
-					}
-				]
-			}
-		}
-	]);
+  const requiredFieldArr: Record<string, string> = {
+    taskName: "Please enter task name.",
+    taskCategory: "Please select a category.",
+    status: "Please select a status",
+  };
 
-	// Default pagination info.
-	let paginationObj = {
-		pageNumber: 1,
-		numRecord: limit,
-		totalRecord: 0,
-		totalPage: 0
-	}
+  if (!paramData) {
+    return generateReturnObj("Error", 1, "", "Invalid params.");
+  }
 
-	if (paginationRes && paginationRes[0]['totalRecord'] && paginationRes[0]['totalRecord'].length > 0) {
-		const totalRecordData = paginationRes[0]['totalRecord'][0]['count'];
+  // Validate input
+  const errorField: any[] = [];
+  for (const fieldKey in requiredFieldArr) {
+    const tempData = paramData[fieldKey];
+    if (!tempData || tempData === "") {
+      errorField.push({
+        errorID: fieldKey,
+        errorMsg: requiredFieldArr[fieldKey],
+      });
+    }
+  }
 
-		paginationObj = {
-			pageNumber: page,
-			numRecord: limit,
-			totalRecord: totalRecordData,
-			totalPage: Math.ceil(totalRecordData / limit)
-		}
-	}
+  if (errorField.length > 0) {
+    // ✅ Cast third argument to any
+    return generateReturnObj("Error", 1, { field: errorField } as any, "Form error");
+  }
 
-	return paginationObj;
-}
+  // Determine next order number for incomplete tasks
+  let latestTaskOrderNum = 1;
+  if (paramData.status === "complete") {
+    latestTaskOrderNum = 0;
+  } else {
+    const tasksRes = await this.aggregate([
+      { $match: { status: "incomplete" } },
+      { $project: { order: 1 } },
+      { $sort: { order: -1 } },
+      { $limit: 1 },
+    ]);
+    if (tasksRes && tasksRes.length > 0) {
+      latestTaskOrderNum = Number(tasksRes[0].order) + 1;
+    }
+  }
 
-todoSchema.statics.addTask = async function(params) {
-	const paramData = params;
+  const newTask = new this({
+    task_name: paramData.taskName,
+    task_description: paramData.taskDescription,
+    task_category: paramData.taskCategory,
+    status: paramData.status,
+    due_date: paramData.dueDate,
+    order: latestTaskOrderNum,
+  });
 
-	const requiredFieldArr = {
-		taskName: "Please enter task name.",
-		taskCategory: "Please select a cateogry.",
-		status: "Please select a status"
-	}
+  await newTask.save();
 
-	if (paramData) {
-		// Validate input params
-		let errorField = [];
-		for (let fieldKey in requiredFieldArr) {
-			let tempData = paramData[fieldKey];
+  return generateReturnObj("Success", 0, "", "Successfully added a task.");
+};
 
-			if (!tempData || tempData == "") {
-				errorField.push({
-					errorID: fieldKey,
-					errorMsg: requiredFieldArr[fieldKey]
-				});
-			}
-		}
+todoSchema.statics.editTask = async function (params) {
+  const paramData = params;
 
-		if (errorField && errorField.length > 0) {
-			return generateReturnObj("Error", 1, {field: errorField}, "Form error");
-		}
+  const requiredFieldArr: Record<string, string> = {
+    taskName: "Please enter task name.",
+    taskCategory: "Please select a category.",
+    status: "Please select a status",
+  };
 
-		const tasksRes = await this.aggregate([
-			{
-				$match: {
-					status: "incomplete"
-				}
-			},
-			{
-				$project: {
-					order: 1
-				}
-			},
-			{
-				$sort: {
-					order: -1
-				}
-			},
-			{
-				$limit: 1
-			}
-		]);
+  const verifiedTaskID = verifyIdFormat(paramData.taskID);
+  if (!paramData.taskID || paramData.taskID === "" || (verifiedTaskID.status && verifiedTaskID.status === "error")) {
+    return generateReturnObj("Error", 2, "", "Invalid task ID.");
+  }
 
-		let latestTaskOrderNum = 1;
+  if (!paramData) {
+    return generateReturnObj("Error", 1, "", "Invalid params.");
+  }
 
-		if (tasksRes && tasksRes.length > 0) {
-			latestTaskOrderNum = Number(tasksRes[0]['order']) + 1;
-		} else if (paramData['status'] === "complete") {
-			latestTaskOrderNum = 0;
-		}
+  const errorField: any[] = [];
+  for (const fieldKey in requiredFieldArr) {
+    const tempData = paramData[fieldKey];
+    if (!tempData || tempData === "") {
+      errorField.push({
+        errorID: fieldKey,
+        errorMsg: requiredFieldArr[fieldKey],
+      });
+    }
+  }
 
+  if (errorField.length > 0) {
+    // ✅ Cast third argument to any
+    return generateReturnObj("Error", 3, errorField as any, "Form error");
+  }
 
-		const newTask = new this({
-			task_name: paramData['taskName'],
-			task_description: paramData['taskDescription'],
-			task_category: paramData['taskCategory'],
-			status: paramData['status'],
-			due_date: paramData['dueDate'],
-			order: latestTaskOrderNum
-		});
+  const taskItem = await this.findById(verifiedTaskID);
+  if (!taskItem) {
+    return generateReturnObj("Error", 1, "", "Unable to update task record, please contact admin.");
+  }
 
-		await newTask.save();
+  taskItem.task_name = paramData.taskName;
+  taskItem.task_description = paramData.taskDescription;
+  taskItem.task_category = paramData.taskCategory;
+  taskItem.status = paramData.status;
+  taskItem.due_date = paramData.dueDate;
+  taskItem.completed_date = paramData.completed_date;
 
-		return generateReturnObj("Success", 0, "", "Successfully added a task.");
-	} else {
-		return generateReturnObj("Error", 1, "", "Invalid params.");
-	}
-}
+  await taskItem.save();
 
-todoSchema.statics.editTask = async function(params) {
-	const paramData = params;
+  return generateReturnObj("Success", 0, "", "Successfully edited a task.");
+};
 
-	const requiredFieldArr = {
-		taskName: "Please enter task name.",
-		taskCategory: "Please select a cateogry.",
-		status: "Please select a status"
-	}
+todoSchema.statics.removeTask = async function (params) {
+  const { taskID } = params;
 
-	const verifiedTaskID = verifyIdFormat(paramData['taskID']);
+  const verifiedTaskID = verifyIdFormat(taskID);
+  if (!taskID || taskID === "" || (verifiedTaskID.status && verifiedTaskID.status === "error")) {
+    return generateReturnObj("Error", 2, "", "Invalid task ID.");
+  }
 
-	if (!paramData['taskID'] || paramData['taskID'] == "" || (verifiedTaskID['status'] && verifiedTaskID['status'] == "error")) {
-		return generateReturnObj("Error", 2, "", "Invalid task ID.");
-	}
-
-	if (paramData) {
-		// Validate input params
-		let errorField = [];
-		for (let fieldKey in requiredFieldArr) {
-			let tempData = paramData[fieldKey];
-
-			if (!tempData || tempData == "") {
-				errorField.push({
-					errorID: fieldKey,
-					errorMsg: requiredFieldArr[fieldKey]
-				});
-			}
-		}
-
-		if (errorField && errorField.length > 0) {
-			return generateReturnObj("Error", 3, {field: errorField}, "Form error");
-		}
-
-		const taskItem = await this.findById(verifiedTaskID);
-
-		if (taskItem) {
-			taskItem.task_name = paramData['taskName'];
-			taskItem.task_description = paramData['taskDescription'];
-			taskItem.task_category = paramData['taskCategory'];
-			taskItem.status = paramData['status'];
-			taskItem.due_date = paramData['dueDate'];
-			taskItem.completed_date = paramData['completed_date'];
-
-			await taskItem.save();
-
-			return generateReturnObj("Success", 0, "", "Successfully edited a task.");
-		}
-	} 
-
-	return generateReturnObj("Error", 1, "", "Unable to update task record, please contact admin.");
-}
-
-todoSchema.statics.removeTask = async function(params) {
-	const {
-		taskID
-	} = params;
-
-	const verifiedTaskID = verifyIdFormat(taskID);
-
-	if (!taskID || taskID == "" || (verifiedTaskID['status'] && verifiedTaskID['status'] == "error")) {
-		return generateReturnObj("Error", 2, "", "Invalid task ID.");
-	}
-
-	const deletedItemRes = await this.findByIdAndDelete(verifiedTaskID);
-
-	if (deletedItemRes) {
-		return generateReturnObj("Success", 0, "", "Successfully removed task record.");
-	} else {
-		return generateReturnObj("Error", 2, "", "Unable to remove task record, please contact admin.");
-	}
-}
+  const deletedItemRes = await this.findByIdAndDelete(verifiedTaskID);
+  if (deletedItemRes) {
+    return generateReturnObj("Success", 0, "", "Successfully removed task record.");
+  } else {
+    return generateReturnObj("Error", 2, "", "Unable to remove task record, please contact admin.");
+  }
+};
 
 todoSchema.statics.updateTaskStatus = async function (params) {
-	const {
-		taskID,
-		status
-	} = params;
+  const { taskID, status } = params;
 
-	const verifiedTaskID = verifyIdFormat(taskID);
+  const verifiedTaskID = verifyIdFormat(taskID);
+  if (!taskID || taskID === "" || (verifiedTaskID.status && verifiedTaskID.status === "error")) {
+    return generateReturnObj("Error", 2, "", "Invalid task ID.");
+  }
+  if (!status || status === "") {
+    return generateReturnObj("Error", 2, "", "Invalid status.");
+  }
 
-	if (!taskID || taskID == "" || (verifiedTaskID['status'] && verifiedTaskID['status'] == "error")) {
-		return generateReturnObj("Error", 2, "", "Invalid task ID.");
-	}
+  const taskItem = await this.findById(verifiedTaskID);
+  if (!taskItem) {
+    return generateReturnObj("Error", 2, "", "Unable to update task record, please contact admin.");
+  }
 
-	if (!status || status == "") {
-		return generateReturnObj("Error", 2, "", "Invalid status.");
-	}
+  let latestTaskOrderNum = 0;
+  if (status === "incomplete") {
+    // Assign new highest order number
+    const tasksRes = await this.aggregate([
+      { $match: { status: "incomplete" } },
+      { $project: { order: 1 } },
+      { $sort: { order: -1 } },
+      { $limit: 1 },
+    ]);
+    if (tasksRes && tasksRes.length > 0) {
+      latestTaskOrderNum = Number(tasksRes[0].order) + 1;
+    }
+    // ✅ Set to undefined instead of null
+    taskItem.completed_date = undefined;
+  } else {
+    // Mark complete, set order to 0
+    latestTaskOrderNum = 0;
+    taskItem.completed_date = new Date();
+  }
 
-	const taskItem = await this.findById(verifiedTaskID);
+  taskItem.status = status;
+  taskItem.order = latestTaskOrderNum;
+  await taskItem.save();
 
-	if (taskItem) {
-		let latestTaskOrderNum = 0;
-
-		if (status == "incomplete") {
-			const tasksRes = await this.aggregate([
-				{
-					$match: {
-						status: "incomplete"
-					}
-				},
-				{
-					$project: {
-						order: 1
-					}
-				},
-				{
-					$sort: {
-						order: -1
-					}
-				},
-				{
-					$limit: 1
-				}
-			]);
-
-			if (tasksRes && tasksRes.length > 0) {
-				latestTaskOrderNum = Number(tasksRes[0]['order']) + 1;
-			}
-
-			taskItem.completed_date = null;
-		} else {
-			taskItem.completed_date = new Date();
-		}
-
-		taskItem.status = status;
-		taskItem.order = latestTaskOrderNum;
-
-		await taskItem.save();
-
-		return generateReturnObj("Success", 0, "","Successfully updated task record.");
-	} else {
-		return generateReturnObj("Error", 2, "", "Unable to update task record, please contact admin.");
-	}
-}
+  return generateReturnObj("Success", 0, "", "Successfully updated task record.");
+};
 
 todoSchema.statics.importTasks = async function (props) {
-	const {
-		tasks
-	} = props;
+  const { tasks } = props;
 
-	if (tasks && tasks.length == 0) {
-		return generateReturnObj("Error", 2, "", "Unable to import task list.");
-	}
+  if (!tasks || tasks.length === 0) {
+    return generateReturnObj("Error", 2, "", "Unable to import task list.");
+  }
 
-	let latestTaskOrderNum = 0;
+  // Find current highest order among incomplete tasks
+  let latestTaskOrderNum = 0;
+  const tasksRes = await this.aggregate([
+    { $match: { status: "incomplete" } },
+    { $project: { order: 1 } },
+    { $sort: { order: -1 } },
+    { $limit: 1 },
+  ]);
+  if (tasksRes && tasksRes.length > 0) {
+    latestTaskOrderNum = Number(tasksRes[0].order);
+  }
 
-	const tasksRes = await this.aggregate([
-		{
-			$match: {
-				status: "incomplete"
-			}
-		},
-		{
-			$project: {
-				order: 1
-			}
-		},
-		{
-			$sort: {
-				order: -1
-			}
-		},
-		{
-			$limit: 1
-		}
-	]);
+  const importedTasks: any[] = [];
+  tasks.forEach((task: any) => {
+    importedTasks.push({
+      ...task,
+      order: task.status === "incomplete" ? ++latestTaskOrderNum : 0,
+    });
+  });
 
-	if (tasksRes && tasksRes.length > 0) {
-		latestTaskOrderNum = Number(tasksRes[0]['order']);
-	} 
-
-	let importedTasks = [];
-
-	tasks.forEach((task, index) => {
-		importedTasks.push({
-			...task,
-			order: (task['status'] === "incomplete" ? ++latestTaskOrderNum : 0)
-		});
-	});
-
-	const importTasksRes = await this.insertMany(importedTasks);
-
-	if (importTasksRes) {
-		return generateReturnObj("Success", 0, "", `Successfully imported ${importTasksRes.length} tasks.`);
-	} else {
-		return generateReturnObj("Error", 2, "", "Unable to import tasks, please contact admin.");
-	}
-
-}
+  const importTasksRes = await this.insertMany(importedTasks);
+  if (importTasksRes) {
+    return generateReturnObj("Success", 0, "", `Successfully imported ${importTasksRes.length} tasks.`);
+  } else {
+    return generateReturnObj("Error", 2, "", "Unable to import tasks, please contact admin.");
+  }
+};
 
 todoSchema.statics.reorderingTask = async function (params) {
-  const {
-    page = 1,
-    limit = 10,
-    reorderedTaskList = [] // array of task IDs in new order for this page
-  } = params;
+  const { page = 1, limit = 10, reorderedTaskList = [] } = params;
 
   if (!reorderedTaskList || reorderedTaskList.length === 0) {
     return generateReturnObj("Error", 1, "", "Invalid reorder list.");
   }
 
-  // 1. Fetch all incomplete tasks sorted by order ascending
+  // Fetch all incomplete tasks sorted by order ascending
   const allTasks = await this.find({ status: 'incomplete' })
     .sort({ order: 1 })
     .lean();
 
-  // 2. Build a map of task ID to its current position in the full list
-  const taskIdToIndex = {};
+  // Map task IDs to their current index
+  const taskIdToIndex: Record<string, number> = {};
   allTasks.forEach((task, idx) => {
     taskIdToIndex[task._id.toString()] = idx;
   });
 
-  // 3. Validate that all IDs in reorderedTaskList exist and are incomplete
-  const invalidIds = reorderedTaskList.filter(id => !taskIdToIndex.hasOwnProperty(id));
+  // Validate that all IDs exist
+  const invalidIds = reorderedTaskList.filter((id: string) => !taskIdToIndex.hasOwnProperty(id));
   if (invalidIds.length > 0) {
     return generateReturnObj("Error", 2, "", `Invalid task IDs: ${invalidIds.join(', ')}`);
   }
 
-  // 4. Calculate the start index of the current page
   const startIndex = (page - 1) * limit;
   const endIndex = Math.min(startIndex + limit, allTasks.length);
 
-  // 5. Extract the current page's task IDs (the segment we are replacing)
-  const currentPageIds = allTasks.slice(startIndex, endIndex).map(task => task._id.toString());
-
-  // 6. Build the new full order: replace the page segment with reorderedTaskList
+  // Build new full order
   const newFullOrder = [
-    ...allTasks.slice(0, startIndex).map(task => task._id.toString()),
+    ...allTasks.slice(0, startIndex).map((task) => task._id.toString()),
     ...reorderedTaskList,
-    ...allTasks.slice(endIndex).map(task => task._id.toString())
+    ...allTasks.slice(endIndex).map((task) => task._id.toString()),
   ];
 
-  // 7. Assign new order numbers (1..N) based on the new full order
-  const bulkOps = newFullOrder.map((id, index) => ({
+  const bulkOps = newFullOrder.map((id: string, index: number) => ({
     updateOne: {
       filter: { _id: new mongoose.Types.ObjectId(id) },
-      update: { $set: { order: index + 1 } }
-    }
+      update: { $set: { order: index + 1 } },
+    },
   }));
 
-  // 8. Execute bulk write
-  const result = await this.bulkWrite(bulkOps);
-
+  await this.bulkWrite(bulkOps);
   return generateReturnObj("Success", 0, "", "Successfully rearranged task records.");
 };
 
-export const Todo = mongoose.models.Todo || mongoose.model('Todo', todoSchema);
+// ============================================================
+// Export Model
+// ============================================================
+export const Todo = (mongoose.models.Todo as ITodoModel) || mongoose.model<ITask, ITodoModel>('Todo', todoSchema);
