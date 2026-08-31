@@ -165,7 +165,7 @@ export default function HomePage() {
     pageNumber: 1,
     numRecord: 10,
     totalRecord: 0,
-    totalPage: 0,
+    totalPage: 1,
   });
 
   // -------------------- Column Definitions --------------------
@@ -191,7 +191,7 @@ export default function HomePage() {
 
   const listingCallback = (data: any, msg: string) => {
     setTasks(data.listing || []);
-    setPagingData(data.pagination || { pageNumber: 1, numRecord: 10, totalRecord: 0, totalPage: 0 });
+    setPagingData(data.pagination || { pageNumber: 1, numRecord: 10, totalRecord: 0, totalPage: 1 });
     getDashboardData(displayDashboard);
   };
 
